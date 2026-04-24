@@ -10,42 +10,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Change expired root password
-        run: |
-          sudo apt-get install -y expect sshpass
-          /usr/bin/expect << 'EXPECT'
-          set timeout 30
-          spawn sshpass -p "$env(SERVER_PASSWORD)" ssh \
-            -o StrictHostKeyChecking=no \
-            -o NumberOfPasswordPrompts=1 \
-            root@$env(SERVER_HOST)
-          expect {
-            "Current password:" {
-              send "$env(SERVER_PASSWORD)\r"
-              expect "New password:"
-              send "$env(SERVER_PASSWORD_NEW)\r"
-              expect "Retype new password:"
-              send "$env(SERVER_PASSWORD_NEW)\r"
-              expect "$ "
-              send "exit\r"
-            }
-            "$ " {
-              send "exit\r"
-            }
-          }
-          expect eof
-          EXPECT
-        env:
-          SERVER_HOST: ${{ secrets.SERVER_HOST }}
-          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
-          SERVER_PASSWORD_NEW: ${{ secrets.SERVER_PASSWORD_NEW }}
-
       - name: Deploy to VPS
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: root
-          password: ${{ secrets.SERVER_PASSWORD_NEW }}
+          password: ${{ secrets.SERVER_PASSWORD }}
           script: |
             set -e
 
