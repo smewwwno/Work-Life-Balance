@@ -1,0 +1,50 @@
+name: Deploy Personal OS
+
+on:
+  push:
+    branches: [claude/personal-os-architecture-tCBIu]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: root
+          password: ${{ secrets.SERVER_PASSWORD }}
+          script: |
+            set -e
+
+            # Node.js 22
+            if ! node --version 2>/dev/null | grep -q "v2[2-9]"; then
+              curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+              apt-get install -y nodejs
+            fi
+
+            # Clone or update repo
+            if [ -d /root/personal-os ]; then
+              cd /root/personal-os && git pull origin claude/personal-os-architecture-tCBIu
+            else
+              git clone --branch claude/personal-os-architecture-tCBIu \
+                https://github.com/smewwwno/Work-Life-Balance /root/personal-os
+            fi
+
+            # Build React app
+            cd /root/personal-os/application
+            npm install
+            npm run build
+
+            # Install pm2 + serve if needed
+            npm list -g pm2 2>/dev/null || npm install -g pm2
+            npm list -g serve 2>/dev/null || npm install -g serve
+
+            # Deploy
+            pm2 stop personal-os 2>/dev/null || true
+            pm2 start "serve -s dist -l 80" --name personal-os
+            pm2 save
+
+            echo "✓ Deployed at http://${{ secrets.SERVER_HOST }}"
